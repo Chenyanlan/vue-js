@@ -2,7 +2,7 @@
   <view-page>
     <!-- 左按钮区 -->
     <template slot="left-field">
-      <el-button type="danger" icon="el-icon-circle-plus-outline">添加</el-button>
+      <el-button type="danger" icon="el-icon-circle-plus-outline" @click= "addTodo">添加</el-button>
     </template>
     <!-- 搜索框 -->
     <template slot="search-field">
@@ -51,8 +51,14 @@
     </el-table-column>
       <el-table-column label="操作">
         <template slot-scope="scope">
-          <el-button size="small" type="warning" icon="el-icon-edit"></el-button>
-          <el-button size="small" type="danger" icon="el-icon-delete"></el-button>
+          <!-- 启动学习计划 -->
+          <el-button v-if= "scope.row.status==0||scope.row.status==2" @click= "updateStatusAjax(scope.row,1)" size="small" type="primary" icon="el-icon-arrow-right"></el-button>
+          <!-- 搁置学习计划 -->
+          <el-button v-if= "scope.row.status==1" @click= "updateStatusAjax(scope.row,2)" size="small" type="info" icon="el-icon-loading"></el-button>
+          <!-- 完成学习计划 -->
+          <el-button v-if= "scope.row.status==1" @click= "updateStatusAjax(scope.row,3)" size="small" type="success" icon="el-icon-check"></el-button>
+          <el-button size="small" type="warning" icon="el-icon-edit" @click= "editTodo(scope.row)"></el-button>
+          <el-button size="small" type="danger" icon="el-icon-delete" @click= "removeTodoAjax(scope.row)"></el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -64,14 +70,35 @@
     @size-change= "pageSizeChange" 
     @current-change = "pageChange">
     </el-pagination>
+    <!-- 对话框 -->
+    <edit-dialog :show= "editShow" title="编辑学习计划" @close= "closeEditDialog"  @save= "saveTodo">
+      <!-- 学习内容表单 -->
+      <el-form :model= "currentTodo" ref= "todoEditForm">
+        <el-form-item label= "学习书籍" prop= "name" required>
+          <el-input v-model= "currentTodo.name"></el-input>
+        </el-form-item>
+        <el-form-item label="书籍作者" prop= "author">
+          <el-tag v-for= "author in currentAuthors" :key= "author" closable @close = "removeAuthor(author)">{{author}}</el-tag>
+          <span @keyup.enter= "addAuthor"><el-input v-model= "currentAuthor"></el-input></span>
+          <el-button type="primary" size = "small" icon = "el-icon-plus" @click= "addAuthor">添加作者</el-button>
+        </el-form-item>
+        <el-form-item label="书籍内容" prop ="content" required>
+          <el-input v-model= "currentTodo.content" type = "textarea"></el-input>
+        </el-form-item>
+        <el-form-item label= "完成时间" prop ="completeDate" required>
+          <el-date-picker v-model= "currentTodo.completeDate" type = "date"></el-date-picker>
+        </el-form-item>
+      </el-form>
+    </edit-dialog>
   </view-page>
 </template>
 
 <script>
 import ViewPage from "./ViewPage";
+import EditDialog from "./EditDialog";
 export default {
   components: {
-    ViewPage
+    ViewPage,EditDialog
   },
   data() {
     return {
@@ -84,7 +111,11 @@ export default {
       sortProp: '',
       sortOrder: '',
       currentPage: 1,
-      currentPageSize: 3
+      currentPageSize: 3,
+      editShow:false,
+      currentTodo:{},
+      currentAuthor:'',
+      currentAuthors:[]
     };
   },
   mounted() {
@@ -115,7 +146,86 @@ export default {
     },
     pageChange(page){
         this.currentPage = page
-    }
+    },
+    closeEditDialog(){
+      this.currentTodo = {}
+      this.currentAuthor = ''
+      this.currentAuthors = []
+      this.$refs.todoEditForm.resetFields()
+      this.editShow = false
+    },
+    addTodo(){
+      this.currentTodo = {}
+      this.editShow = true
+    },
+    saveTodo(){
+      this.$refs.todoEditForm.validate((valid)=>{
+        if(valid){
+          this.currentTodo.author = this.currentAuthors
+          this.currentTodo._id ? this.editAjax() : this.addAjax()
+        }
+      });
+      // this.closeEditDialog()  
+    },
+    addAuthor(){
+      this.currentAuthors.push(this.currentAuthor)
+      this.currentAuthor = ""
+    },
+    removeAuthor(author){
+      this.currentAuthors.splice(this.currentAuthors.indexOf(author),1)
+    },
+    addAjax(){
+      this.$ajax.post('todos',this.currentTodo).then((res)=>{
+        if(res.data) this.data.push(res.data)
+         this.closeEditDialog()  
+      }).catch((err)=>this.$notify({
+        type:'error',
+        message:err
+      }))
+     
+    },
+    editAjax(){
+     this.$ajax.put('todos/'+this.currentTodo._id,this.currentTodo).then((res)=>{
+       if(res.data){
+         var index = this.data.findIndex(item=>item._id == res.data._id)
+         this.data.splice(index,1,res,data)
+       }
+       this.closeEditDialog()
+     }).catch((err)=>this.$notify({
+       type:'error',
+       message:err
+     }))
+    },
+    editTodo(row){
+      this.currentTodo = JSON.parse(JSON.stringify(row))
+      this.currentAuthors = this.currentTodo.author
+      this.editShow = true
+    },
+    updateStatusAjax(row, status) {
+      var todo = { _id: row._id, status }
+      this.$ajax.put('todos/' + todo._id, todo).then((res) => {
+        if (res.data) {
+            var index = this.data.findIndex(item => item._id == res.data._id)
+            this.data.splice(index, 1, res.data)
+        }
+      }).catch((err) => this.$notify({
+        type: 'error',
+        message: err
+     }))
+    },
+  removeTodoAjax(row) {
+    this.$confirm('确定要删除?').then(() => {
+        this.$ajax.delete('todos/' + row._id).then((res) => {
+            if (res.data) {
+                var index = this.data.findIndex(item => item._id == res.data._id)
+                this.data.splice(index, 1)
+            }
+        })
+    }).catch((err) => this.$notify({
+        type: 'error',
+        message: err
+    }))
+}
   },
   computed: {
     filtedData() {

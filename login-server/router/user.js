@@ -16,10 +16,6 @@ router.route('/validate').post((req,res)=>{
         }
         res.json(user)
      })
-    // var user = users.find((item)=>{
-    //     return item.name==req.body.name &&item.pass== req.body.pass
-    // })
-    // res.json(user ? user :{})
 })
 
 

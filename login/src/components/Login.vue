@@ -8,7 +8,10 @@
                <el-input v-model="user.pass" type="password" show-password></el-input>
            </el-form-item>
             <el-form-item>
-               <el-button type="primary" icon="el-icon-upload" @click="login">登录</el-button>
+               <el-button type="primary" icon="el-icon-upload" @click= "login">登录</el-button>
+           </el-form-item>
+           <el-form-item>
+               <el-button type = "primary" icon = "el-icon-user" @click= "register">注册</el-button>
            </el-form-item>
        </el-form>
     </el-row>
@@ -75,6 +78,9 @@ export default {
                     return false
                 }
             })
+        },
+        register(){
+            this.$router.replace('/register')
         }
     },
     data(){

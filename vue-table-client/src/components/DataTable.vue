@@ -176,6 +176,7 @@ export default {
     },
     addAjax(){
       this.$ajax.post('todos',this.currentTodo).then((res)=>{
+        console.log(res.data)
         if(res.data) this.data.push(res.data)
          this.closeEditDialog()  
       }).catch((err)=>this.$notify({
@@ -188,7 +189,7 @@ export default {
      this.$ajax.put('todos/'+this.currentTodo._id,this.currentTodo).then((res)=>{
        if(res.data){
          var index = this.data.findIndex(item=>item._id == res.data._id)
-         this.data.splice(index,1,res,data)
+         this.data.splice(index,1,res.data)
        }
        this.closeEditDialog()
      }).catch((err)=>this.$notify({
